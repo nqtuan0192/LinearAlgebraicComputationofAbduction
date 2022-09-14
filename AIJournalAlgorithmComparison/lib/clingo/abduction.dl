@@ -1,0 +1,102 @@
+%%%% TAKEN FROM www.cs.helsinki.fi/group/coreo/abhs/
+%%%%%%%%%%%%% Preprocessing %%%%%%%%%%
+
+
+clause(C) :- hclause(C).
+
+% Remove tautological clauses 
+taut(C) :- pos(C,X), neg(C,X).
+preprocessed_clause(C) :- clause(C), not taut(C).
+
+% which variable is in which clause 
+var_in_clause(C,X) :- preprocessed_clause(C), pos(C,X).
+var_in_clause(C,X) :- preprocessed_clause(C), neg(C,X).
+
+%%%%%%%%%%%%% Guess a Candidate Solution %%%%%%%%%%
+
+% S, a subset of hypotheses  is a solution iff (1) and (2) hold
+solution(S) :- sclause(S,Y), not nosolution(S).
+nosolution(S) :- sclause(S,Y), not solution(S).
+
+clause(C) :- sclause(C,Y), solution(C).
+
+%%%%%%%%%%%%% (1) background theory is consistent with S %%%%%%%%%%
+
+% guess an assignment for all variables
+true_consistency(X) :- variable(X), not false_consistency(X).
+false_consistency(X) :- variable(X), not true_consistency(X).
+
+%% Solution must be true
+% true_consistency(S) :- solution(S).
+
+%% Check for each clause in T whether it is satisfied
+sat(C) :- preprocessed_clause(C), pos(C,V), true_consistency(V).
+sat(C) :- preprocessed_clause(C), neg(C,V), false_consistency(V).
+
+%% In case a clause is not satisfied, remove AS 
+notsat :- preprocessed_clause(C), not sat(C).
+:- notsat.
+
+
+%%%%%%%%%%%%%% (2) background theory and solution entail the manifestation%%%%%%%%%%
+
+%% Find assignment, which is a counter-example to entailment
+true_entail(X) | false_entail(X) :- variable(X).
+
+% ordering over variables in preprocessed clauses
+lowerThan(C,X,Y) :- var_in_clause(C,X), var_in_clause(C,Y), X<Y.
+not_successor(C,X,Z) :- lowerThan(C,X,Y), lowerThan(C,Y,Z).
+successor(C,X,Y) :- lowerThan(C,X,Y), not not_successor(C,X,Y).
+not_infimum(C,X) :- lowerThan(C,Y,X).
+not_supremum(C,X) :- lowerThan(C,X,Y).
+infimum(C,X) :- not not_infimum(C,X), var_in_clause(C,X).
+supremum(C,X) :- not not_supremum(C,X), var_in_clause(C,X).
+
+% check if unsat
+unsatupto(C,V) :- infimum(C,V), pos(C,V), false_entail(V).
+unsatupto(C,V) :- infimum(C,V), neg(C,V), true_entail(V).
+unsatupto(C,V) :- unsatupto(C,PreV), successor(C,PreV,V), pos(C,V), false_entail(V).
+unsatupto(C,V) :- unsatupto(C,PreV), successor(C,PreV,V), neg(C,V), true_entail(V).
+
+unsat(C) :- unsatupto(C,V), supremum(C,V).
+unsat :- unsat(C).
+
+% make sure that variables in manifestations and solution get the right truth value
+
+% ordering over variables in preprocessed clauses
+var_in_manifestation(X) :- pos(M,X), manifestation(M).
+var_in_manifestation(X) :- neg(M,X), manifestation(M).
+
+lowerThan(X,Y) :- var_in_manifestation(X), var_in_manifestation(Y), X<Y.
+not_successor(X,Z) :- lowerThan(X,Y), lowerThan(Y,Z).
+successor(X,Y) :- lowerThan(X,Y), not not_successor(X,Y).
+not_infimum(X) :- lowerThan(Y,X).
+not_supremum(X) :- lowerThan(X,Y).
+infimum(X) :- not not_infimum(X), var_in_manifestation(X).
+supremum(X) :- not not_supremum(X), var_in_manifestation(X).
+
+% true_entail(Y) :- pos(X,Y), manifestation(X).
+% false_entail(Y) :- neg(X,Y), manifestation(X).
+% true_entail(X) :- solution(X).
+
+% check if unsat (manifestations) this time: positive literals should also be assigned true (since we're searching for negation of conjunction of manifestations)
+unsatupto(V) :- infimum(V), pos(C,V), true_entail(V), manifestation(C).
+unsatupto(V) :- infimum(V), neg(C,V), false_entail(V), manifestation(C).
+unsatupto(V) :- unsatupto(PreV), successor(PreV,V), pos(C,V), true_entail(V), manifestation(C).
+unsatupto(V) :- unsatupto(PreV), successor(PreV,V), neg(C,V), false_entail(V), manifestation(C).
+
+unsat(C) :- unsatupto(V), supremum(V), manifestation(C).
+
+
+% saturation
+true_entail(X) :- variable(X), unsat.
+false_entail(X) :- variable(X), unsat.
+
+:- not unsat.
+
+%:~ solution(S), sclause(S,C). [C,S]
+
+#show solution/1.
+%#show manifestation/1.
+%#show hypothesis/1.
+%#show variable/1.

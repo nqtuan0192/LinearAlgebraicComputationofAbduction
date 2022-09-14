@@ -1,0 +1,51 @@
+GENERAL 
+
+This software executes the benchmark evaluation described in the paper and 
+returns csv files with the evaluation results.
+Please refer to the paper for all used tools and reimplemented algorithms.
+
+This research prototype has been developed on macOS Sierra (Version 10.12.5)
+and tested on (OS X Yosemite 10.10.5). 
+
+
+RUNNING THE SOFTWARE
+
+Call the software with "<folder> [timeout in ms]", where <folder> is the 
+directory containing the diagnosis examples and [timeout in ms] is an optional 
+argument where you can specify the timeout (the default value is 20 min as used
+in the evaluation.). 
+
+We provide an executable for clingo (www.potassco.org/clingo/), however, this 
+may not be suitable for other operating systems than macOS. In case it does not
+work, try to download clingo yourself and add the executable to the lib folder 
+of the software.
+
+Make sure to insert clingo into the folder "lib/clingo/" and do not remove the
+file "abduction.dl". For SOLAR it is necessary that the jar is in the correct
+folder "lib/SOLAR/" and named "solar2-build315.jar".
+
+
+COPYRIGHT
+
+Note that the following copyright applies to all provided piece of software 
+developed by TU Graz (other licensing may apply to the used tools):
+Copyright (c) 2009, 2011, 2014,  2015, 2016, 2017 TU Graz - 
+Institute for Software Technology
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+ this software and associated documentation files (the "Software"), to deal in 
+ the Software without restriction, including without limitation the rights to 
+ use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies 
+ of the Software, and to permit persons to whom the Software is furnished to do
+ so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all 
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL 
+THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, 
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE 
+SOFTWARE.
