@@ -691,7 +691,30 @@ def writeOutput(method, ifile, ofile, hypotheses, effects, rules, and_rules, or_
     pass
 
 
-def abduce(ifile, ofile, timeout):
+def is_csr_equal(A, B, atol = 1e-8):
+    if np.array_equal(A.shape, B.shape)==0:
+        return False
+
+    r1,c1 = A.nonzero()
+    r2,c2 = B.nonzero()
+
+    lidx1 = np.ravel_multi_index((r1,c1), A.shape)
+    lidx2 = np.ravel_multi_index((r2,c2), B.shape)
+
+    sidx1 = lidx1.argsort()
+    sidx2 = lidx2.argsort()
+
+    index_match = np.array_equal(lidx1[sidx1], lidx2[sidx2])
+    if index_match==0:
+        return False
+    else:  
+        v1 = A.data
+        v2 = B.data        
+        V1 = v1[sidx1]
+        V2 = v2[sidx2]        
+        return np.allclose(V1,V2, atol=atol)
+
+def abduce(ifile, ofile, timeout, is_peval):
     rawdata, hypotheses, effects, observations, rules, facts = readInputData(
         ifile)
     start_time = time.time()
@@ -711,7 +734,23 @@ def abduce(ifile, ofile, timeout):
         return rules, out_rules, out_atom_mapping, None, observations, set(), 0, True
     mp = buildMatrix(out_rules, out_atom_mapping)
     v = initObservableVector(observations, out_atom_mapping)
+
     start_time = time.time()
+    if is_peval:
+        for row in or_rules_mapped.keys():
+            mp[row] = np.zeros(mp.shape[1])
+            mp[row][row] = 1.0
+        count_step = 0
+        while True:
+            count_step += 1
+            mp_t = np.dot(mp, mp)
+            if np.array_equal(mp, mp_t):
+                break
+            count_step += 1
+            mp = np.dot(mp_t, mp_t)
+            if np.array_equal(mp, mp_t):
+                break
+        print("Finish peval, peval_steps = ", count_step)
     explanations, maximum_explanations_size, is_timedout = doAbduction(
         mp, v, hypotheses_mapped, out_rules, and_rules_mapped, or_rules_mapped, out_atom_mapping, timeout)
     executation_time = time.time() - start_time
@@ -721,7 +760,7 @@ def abduce(ifile, ofile, timeout):
     return rules, out_rules, out_atom_mapping, mp, observations, explanations, executation_time, is_timedout
 
 
-def abduce_sparse(ifile, ofile, timeout):
+def abduce_sparse(ifile, ofile, timeout, is_peval=False):
     rawdata, hypotheses, effects, observations, rules, facts = readInputData(
         ifile)
     start_time = time.time()
@@ -746,7 +785,27 @@ def abduce_sparse(ifile, ofile, timeout):
                     ms.nnz/(len(out_atom_mapping) ** 2), None,
                     None, None)
         return rules, out_rules, out_atom_mapping, ms, observations, set(), 0, True
+
     start_time = time.time()
+    if is_peval:
+        for row in or_rules_mapped.keys():
+            row_beg = ms.indptr[row]
+            row_end = ms.indptr[row + 1]
+            ms.data[row_beg : row_end] = np.zeros(row_end - row_beg)
+            ms.data[row_beg] = 1.0
+            ms.indices[row_beg] = row
+        # ms.eliminate_zeros()
+        count_step = 0
+        while True:
+            count_step += 1
+            ms_t = np.dot(ms, ms)
+            if is_csr_equal(ms, ms_t):
+                break
+            count_step += 1
+            ms = np.dot(ms_t, ms_t)
+            if is_csr_equal(ms, ms_t):
+                break
+        print("Finish peval, peval_steps = ", count_step)
     explanations, is_timedout = doAbduction_sparse(
         ms, vs, hypotheses_mapped, facts_mapped, fs, out_rules, and_rules_mapped, or_rules_mapped, out_atom_mapping, timeout)
     executation_time = time.time() - start_time
@@ -824,12 +883,15 @@ def main1():
     parser.add_argument('input', help='Input folder')
     parser.add_argument('output', help='Output file')
     parser.add_argument('format', choices=['dense', 'sparse'])
+    parser.add_argument('--peval', action=argparse.BooleanOptionalAction)
+    parser.set_defaults(peval=False)
 
     args = parser.parse_args()
 
     loadpath = args.input
     writepath = args.output
     format = args.format
+    ispeval = args.peval
 
     import pandas as pd
     df = pd.DataFrame(columns=['filename', 'diagnosis_set', 'match',
@@ -844,10 +906,10 @@ def main1():
 
             if format == 'dense':
                 rules, out_rules, out_atom_mapping, mp, observations, explanations, executation_time, is_timedout = abduce(
-                    path, writepath, 5)
+                    path, writepath, 5, is_peval=ispeval)
             elif format == 'sparse':
                 rules, out_rules, out_atom_mapping, ms, observations, explanations, executation_time, is_timedout = abduce_sparse(
-                    path, writepath, 5)
+                    path, writepath, 5, is_peval=ispeval)
 
             for exp in explanations:
                 sorted_exp = sorted(list(mapAtomsToSymbols(
